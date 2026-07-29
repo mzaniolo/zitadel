@@ -537,7 +537,12 @@ func importMachineUsers(ctx context.Context, s *Server, errors *[]*admin_pb.Impo
 	for _, user := range org.GetMachineUsers() {
 		logging.Debugf("import user: %s", user.GetUserId())
 		userState := user.State.ToDomain()
-		_, err := s.command.AddMachine(ctx, management.AddMachineUserRequestToCommand(user.GetUser(), org.GetOrgId()), &userState, nil)
+		machine := management.AddMachineUserRequestToCommand(user.GetUser(), org.GetOrgId())
+		// Export puts the ID on DataMachineUser.user_id; nested AddMachineUserRequest.user_id is unset.
+		if machine.AggregateID == "" {
+			machine.AggregateID = user.GetUserId()
+		}
+		_, err := s.command.AddMachine(ctx, machine, &userState, nil)
 		if err != nil {
 			*errors = append(*errors, &admin_pb.ImportDataError{Type: "machine_user", Id: user.GetUserId(), Message: errorToImportError(err)})
 			if isCtxTimeout(ctx) {
